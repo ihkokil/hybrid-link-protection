@@ -1,0 +1,38 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments & build
+.env
+.venv
+env/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Raw trace dumps (not distributed)
+data/rocketfuel/*.cch
+
+# Local drafts & manuscripts (strictly local)
+latex/
+docx/
+
+# Jupyter notebooks
+notebooks/
+*.ipynb
+
+# Editor & OS artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

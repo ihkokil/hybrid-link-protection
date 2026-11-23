@@ -1,0 +1,129 @@
+name: C-TA-HLP Experiments & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run test suite
+        run: pytest tests/ -v
+
+  sndlib-statistical:
+    name: SNDlib Statistical Campaign (5 reps)
+    needs: [unit-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run SNDlib statistical experiments
+        run: |
+          python experiments/run_statistical_experiments.py \
+            --topo-type sndlib \
+            --replicates 5 \
+            --trials 300 \
+            --seed 42
+      - name: Build comprehensive tables
+        run: python scripts/build_comprehensive_tables.py
+      - name: Generate publication figures
+        run: python plotting/plot_comprehensive.py
+      - name: Upload results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sndlib-results
+          path: |
+            results/sndlib/
+            latex/generated/
+            plots/
+          retention-days: 30
+
+  baseline-comparison:
+    name: 6-Baseline Comparison (SNDlib)
+    needs: [unit-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run comprehensive campaign
+        run: python experiments/run_comprehensive_campaign.py --seed 42
+      - name: Build tables & plots
+        run: |
+          python scripts/build_comprehensive_tables.py
+          python plotting/plot_comprehensive.py
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-results
+          path: |
+            results/
+            latex/generated/
+            plots/
+
+  release-results:
+    name: Publish Release with Experiment Artifacts
+    needs: [sndlib-statistical, baseline-comparison]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Package results
+        run: |
+          mkdir -p release_package
+          cp -r artifacts/sndlib-results/* release_package/ 2>/dev/null || true
+          cp -r artifacts/baseline-results/* release_package/ 2>/dev/null || true
+          tar -czf cta-hlp-results-${{ github.ref_name }}.tar.gz release_package/
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "C-TA-HLP Release ${{ github.ref_name }}"
+          body: |
+            Automated reproduction package for IEEE TNSM submission.
+            
+            **Reproduced via GitHub Actions CI**:
+            - SNDlib statistical campaign (5 replicates × 4 topologies × 8 budgets)
+            - 6-baseline comparison (LFC, Random, HLP, Max-Traffic, C-TA-HLP, Optimal-ILP)
+            - LaTeX tables & publication-ready PDF figures
+            
+            Commit: `${{ github.sha }}`
+          files: cta-hlp-results-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
