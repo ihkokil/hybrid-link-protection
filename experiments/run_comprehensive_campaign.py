@@ -235,16 +235,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run comprehensive experiments for Q1 readiness.")
     parser.add_argument("--trials", type=int, default=300)
     parser.add_argument("--replicates", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     args = parser.parse_args()
 
     print("=== Step 1: Baseline & Optimality Gap Campaign ===")
-    run_baseline_and_optimality_campaign(num_trials=args.trials)
+    run_baseline_and_optimality_campaign(num_trials=args.trials, seed=args.seed)
 
     print("=== Step 2: Capacity Headroom Sensitivity ===")
-    run_headroom_sensitivity(num_trials=args.trials)
+    run_headroom_sensitivity(num_trials=args.trials, seed=args.seed)
 
     print("=== Step 3: Multi-Matrix Traffic Uncertainty Campaign ===")
-    run_traffic_uncertainty_campaign(n_replicates=args.replicates, num_trials=args.trials)
+    run_traffic_uncertainty_campaign(n_replicates=args.replicates, num_trials=args.trials, base_seed=args.seed)
 
     print("=== All comprehensive experiments completed successfully! ===")
 
